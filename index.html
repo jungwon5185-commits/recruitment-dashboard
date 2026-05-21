@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>채용 대시보드</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
   <style>
     :root { color-scheme: light; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -294,7 +292,6 @@
       font-size: 13px;
       color: #0c4a6e;
       font-weight: 500;
-      cursor: pointer;
     }
     .csv-upload input[type="file"] {
       display: none;
@@ -323,20 +320,19 @@
   <div class="container">
     <div class="header">
       <h1>📊 채용 대시보드</h1>
-      <div class="meta" id="meta-info">CSV 파일을 로드해주세요</div>
+      <div class="meta" id="meta-info">데이터 로딩 중...</div>
     </div>
 
-    <div class="csv-upload">
+    <div class="csv-upload" id="upload-section" style="display:none;">
       <label for="csv-input">📁 CSV 파일 업로드:</label>
       <input type="file" id="csv-input" accept=".csv" />
       <button onclick="document.getElementById('csv-input').click()">파일 선택</button>
-      <span style="font-size: 12px; color: #0c4a6e;">또는 아래 CSV URL 필드에 URL을 붙여넣기</span>
     </div>
 
     <div id="content">
       <div class="loading">
         <div class="spinner"></div>
-        <div>CSV 파일을 업로드하거나 URL을 입력해주세요</div>
+        <div>채용 데이터를 불러오는 중...</div>
       </div>
     </div>
   </div>
@@ -350,7 +346,6 @@
     document.getElementById('csv-input').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = (evt) => {
         const csv = evt.target.result;
@@ -615,7 +610,6 @@
       return Array.from(map.values()).sort((a, b) => b.total - a.total);
     }
 
-    // -------- Rendering --------
     function fmtPct(num, den) {
       if (!den) return '0.0%';
       return ((num / den) * 100).toFixed(1) + '%';
@@ -1027,6 +1021,7 @@
           <div style="margin-top:6px; font-size:13px;">${msg}</div>
         </div>
       `;
+      document.getElementById('upload-section').style.display = 'flex';
     }
 
     function loadAndRender(csvText) {
@@ -1044,11 +1039,52 @@
 
         stage = '렌더링';
         render();
+        document.getElementById('upload-section').style.display = 'none';
       } catch (err) {
         console.error('[채용 대시보드] 실패 단계:', stage, err);
         showError(stage, err);
       }
     }
+
+    // 페이지 로드 시 자동으로 data.csv 로드
+    async function autoLoadCSV() {
+      try {
+        console.log('📋 data.csv 자동 로드 시작...');
+
+        // 방법 1: 현재 경로의 data.csv
+        let response = await fetch('./data.csv', {
+          method: 'GET',
+          headers: { 'Accept': 'text/csv; charset=utf-8' }
+        });
+
+        if (!response.ok && response.status === 404) {
+          console.log('📁 ./data.csv를 찾을 수 없음, /data.csv 시도');
+          response = await fetch('/data.csv', {
+            method: 'GET',
+            headers: { 'Accept': 'text/csv; charset=utf-8' }
+          });
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: 파일을 찾을 수 없습니다`);
+        }
+
+        const csvText = await response.text();
+        if (!csvText || csvText.trim().length === 0) {
+          throw new Error('CSV 파일이 비어있습니다');
+        }
+
+        console.log('✅ data.csv 로드 성공:', csvText.substring(0, 100) + '...');
+        loadAndRender(csvText);
+      } catch (err) {
+        console.warn('⚠️ 자동 로드 실패:', err.message);
+        console.log('💡 CSV 파일을 수동으로 업로드해주세요');
+        document.getElementById('upload-section').style.display = 'flex';
+      }
+    }
+
+    // 페이지 로드 시 실행
+    window.addEventListener('load', autoLoadCSV);
   </script>
 </body>
 </html>
