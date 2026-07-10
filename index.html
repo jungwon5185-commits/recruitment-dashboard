@@ -453,7 +453,7 @@
 
       const finalPassed = interviewPassed;
       const isHired = hasVal(a.hireDate);
-      const awaitingHire = finalPassed && !isHired;
+      const awaitingHire = finalPassed && !isHired && !hasReject;
 
       return {
         codingDone, codingPassed, codingFailed, codingInProgress,
