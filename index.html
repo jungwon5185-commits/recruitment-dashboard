@@ -309,6 +309,40 @@
     .csv-upload button:hover {
       background: #0284c7;
     }
+    /* T/O 테이블 스타일 */
+    .to-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+    }
+    .to-table th {
+      background: #f3f4f6;
+      font-weight: 600;
+      color: #6b7280;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .to-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f3f4f6;
+      text-align: left;
+    }
+    .to-table td.num {
+      text-align: center;
+      font-weight: 600;
+    }
+    .to-table td.highlight {
+      color: #2563eb;
+      font-weight: 600;
+    }
+    .to-table tbody tr:hover {
+      background: #f9fafb;
+    }
     @media (max-width: 760px) {
       .grid { grid-template-columns: 1fr; }
       .funnel-label { width: 70px; font-size: 12px; }
@@ -327,6 +361,19 @@
       <label for="csv-input">📁 CSV 파일 업로드:</label>
       <input type="file" id="csv-input" accept=".csv" />
       <button onclick="document.getElementById('csv-input').click()">파일 선택</button>
+    </div>
+
+    <!-- T/O 테이블 섹션 -->
+    <div class="card" style="margin-bottom:20px;">
+      <h2>📊 채용 T/O 현황
+        <span class="badge">포지션별 채용 진행 상황</span>
+      </h2>
+      <div class="table-wrap" id="to-section" style="max-height: 400px; overflow-y: auto;">
+        <div class="loading">
+          <div class="spinner"></div>
+          <div>T/O 데이터 로딩 중...</div>
+        </div>
+      </div>
     </div>
 
     <div id="content">
@@ -1046,39 +1093,85 @@
       }
     }
 
-    // 페이지 로드 시 자동으로 data.csv 로드
+    // T/O 테이블 렌더링
+    function renderTOTable(csvText) {
+      try {
+        const { headers, rows } = parseCSV(csvText);
+
+        // 테이블 HTML 생성
+        let tableHtml = '<table class="to-table"><thead><tr>';
+        headers.forEach(h => {
+          tableHtml += `<th>${h}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        rows.forEach(row => {
+          tableHtml += '<tr>';
+          row.forEach((cell, idx) => {
+            // 중요 컬럼 강조
+            if (headers[idx] === '포지션' || headers[idx] === '상태') {
+              tableHtml += `<td class="highlight"><strong>${cell}</strong></td>`;
+            } else if (headers[idx] === 'TO' || headers[idx] === '채용완료') {
+              tableHtml += `<td class="num">${cell}</td>`;
+            } else {
+              tableHtml += `<td>${cell}</td>`;
+            }
+          });
+          tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody></table>';
+
+        // 대시보드에 삽입
+        const toSection = document.getElementById('to-section');
+        if (toSection) {
+          toSection.innerHTML = tableHtml;
+        }
+      } catch (err) {
+        console.error('T/O 테이블 렌더링 실패:', err);
+      }
+    }
+
+    // T/O 데이터 로드
+    async function loadTOData() {
+      try {
+        console.log('📋 T/O 데이터 로드 시작...');
+        // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
+        const TO_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=61262713';
+
+        let response = await fetch(TO_CSV_URL);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const csvText = await response.text();
+        console.log('✅ T/O 데이터 로드 성공');
+        renderTOTable(csvText);
+      } catch (err) {
+        console.warn('⚠️ T/O 데이터 로드 실패:', err.message);
+      }
+    }
+
+    // 채용 데이터 자동 로드
     async function autoLoadCSV() {
       try {
-        console.log('📋 data.csv 자동 로드 시작...');
+        console.log('📋 채용 데이터 자동 로드 시작...');
+        // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
+        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=0';
 
-        // 방법 1: 현재 경로의 data.csv
-        let response = await fetch('./data.csv', {
-          method: 'GET',
-          headers: { 'Accept': 'text/csv; charset=utf-8' }
-        });
-
-        if (!response.ok && response.status === 404) {
-          console.log('📁 ./data.csv를 찾을 수 없음, /data.csv 시도');
-          response = await fetch('/data.csv', {
-            method: 'GET',
-            headers: { 'Accept': 'text/csv; charset=utf-8' }
-          });
-        }
-
+        let response = await fetch(RECRUITMENT_CSV_URL);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: 파일을 찾을 수 없습니다`);
+          throw new Error(`HTTP ${response.status}`);
         }
-
         const csvText = await response.text();
         if (!csvText || csvText.trim().length === 0) {
           throw new Error('CSV 파일이 비어있습니다');
         }
-
-        console.log('✅ data.csv 로드 성공:', csvText.substring(0, 100) + '...');
+        console.log('✅ 채용 데이터 로드 성공');
         loadAndRender(csvText);
+
+        // T/O 데이터도 로드
+        loadTOData();
       } catch (err) {
         console.warn('⚠️ 자동 로드 실패:', err.message);
-        console.log('💡 CSV 파일을 수동으로 업로드해주세요');
         document.getElementById('upload-section').style.display = 'flex';
       }
     }
