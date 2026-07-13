@@ -343,6 +343,35 @@
     .to-table tbody tr:hover {
       background: #f9fafb;
     }
+    .year-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .year-kpi-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .year-kpi-card .year {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .year-kpi-card .label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .year-kpi-card .value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+    }
     @media (max-width: 760px) {
       .grid { grid-template-columns: 1fr; }
       .funnel-label { width: 70px; font-size: 12px; }
@@ -363,15 +392,62 @@
       <button onclick="document.getElementById('csv-input').click()">파일 선택</button>
     </div>
 
-    <!-- T/O 테이블 섹션 -->
+    <!-- T/O 대시보드 섹션 -->
     <div class="card" style="margin-bottom:20px;">
       <h2>📊 채용 T/O 현황
-        <span class="badge">포지션별 채용 진행 상황</span>
+        <span class="badge">연도별 비교 및 2026년 상세 정보</span>
       </h2>
-      <div class="table-wrap" id="to-section" style="max-height: 400px; overflow-y: auto;">
-        <div class="loading">
-          <div class="spinner"></div>
-          <div>T/O 데이터 로딩 중...</div>
+
+      <!-- 2026년 KPI 카드 -->
+      <div style="margin-bottom: 16px;">
+        <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">2026년 채용 현황</h3>
+        <div class="year-kpi-grid" id="year-2026-kpi">
+          <div class="year-kpi-card">
+            <div class="label">총 TO</div>
+            <div class="value" id="to-2026-total">-</div>
+          </div>
+          <div class="year-kpi-card">
+            <div class="label">채용완료</div>
+            <div class="value" id="to-2026-complete">-</div>
+          </div>
+          <div class="year-kpi-card">
+            <div class="label">진행중</div>
+            <div class="value" id="to-2026-progress">-</div>
+          </div>
+          <div class="year-kpi-card">
+            <div class="label">남은 TO</div>
+            <div class="value" id="to-2026-remaining">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 연도별 비교 차트 -->
+      <div style="margin-bottom: 16px;">
+        <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">연도별 비교 (2025 vs 2026)</h3>
+        <div style="position: relative; height: 300px;">
+          <canvas id="year-comparison-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 2026년 포지션별 상세 정보 -->
+      <div>
+        <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">2026년 포지션별 상세 정보</h3>
+        <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+          <table class="to-table" id="to-2026-detail-table">
+            <thead>
+              <tr>
+                <th>포지션</th>
+                <th style="text-align: center;">총 TO</th>
+                <th style="text-align: center;">채용완료</th>
+                <th style="text-align: center;">진행중</th>
+                <th style="text-align: center;">남은 TO</th>
+                <th style="text-align: center;">달성율</th>
+              </tr>
+            </thead>
+            <tbody id="to-2026-table-body">
+              <tr><td colspan="6" style="text-align: center; color: #9ca3af;">데이터 로딩 중...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -386,6 +462,7 @@
 
   <script>
     let appData = null;
+    let toData = null;
     let currentFilter = '전체';
     const charts = {};
 
@@ -1093,42 +1170,158 @@
       }
     }
 
-    // T/O 테이블 렌더링
-    function renderTOTable(csvText) {
-      try {
-        const { headers, rows } = parseCSV(csvText);
+    // ===== T/O 분석 함수 =====
+    function analyzeTO() {
+      if (!toData || !toData.headers) return;
 
-        // 테이블 HTML 생성
-        let tableHtml = '<table class="to-table"><thead><tr>';
-        headers.forEach(h => {
-          tableHtml += `<th>${h}</th>`;
-        });
-        tableHtml += '</tr></thead><tbody>';
+      const idx = name => toData.headers.indexOf(name);
+      const cols = {
+        position: idx('포지션'),
+        requestDate: idx('채용요청시기'),
+        to: idx('TO'),
+        complete: idx('채용완료'),
+        progress: idx('진행중'),
+        remaining: idx('남은TO'),
+      };
 
-        rows.forEach(row => {
-          tableHtml += '<tr>';
-          row.forEach((cell, idx) => {
-            // 중요 컬럼 강조
-            if (headers[idx] === '포지션' || headers[idx] === '상태') {
-              tableHtml += `<td class="highlight"><strong>${cell}</strong></td>`;
-            } else if (headers[idx] === 'TO' || headers[idx] === '채용완료') {
-              tableHtml += `<td class="num">${cell}</td>`;
-            } else {
-              tableHtml += `<td>${cell}</td>`;
-            }
-          });
-          tableHtml += '</tr>';
-        });
-        tableHtml += '</tbody></table>';
+      // 연도별 집계
+      const yearData = {
+        2025: { total: 0, complete: 0, progress: 0, remaining: 0 },
+        2026: { total: 0, complete: 0, progress: 0, remaining: 0 },
+      };
 
-        // 대시보드에 삽입
-        const toSection = document.getElementById('to-section');
-        if (toSection) {
-          toSection.innerHTML = tableHtml;
+      // 2026년 포지션별 데이터
+      const positionData2026 = {};
+
+      toData.rows.forEach(row => {
+        const requestDate = (row[cols.requestDate] || '').trim();
+        const year = requestDate.substring(0, 4);
+        const to = parseNum(row[cols.to]);
+        const complete = parseNum(row[cols.complete]);
+        const progress = parseNum(row[cols.progress]);
+        const remaining = parseNum(row[cols.remaining]);
+
+        if (year === '2025' || year === '2026') {
+          if (yearData[year]) {
+            yearData[year].total += to;
+            yearData[year].complete += complete;
+            yearData[year].progress += progress;
+            yearData[year].remaining += remaining;
+          }
         }
-      } catch (err) {
-        console.error('T/O 테이블 렌더링 실패:', err);
-      }
+
+        // 2026년 포지션별
+        if (year === '2026') {
+          const pos = (row[cols.position] || '미상').trim();
+          if (!positionData2026[pos]) {
+            positionData2026[pos] = { total: 0, complete: 0, progress: 0, remaining: 0 };
+          }
+          positionData2026[pos].total += to;
+          positionData2026[pos].complete += complete;
+          positionData2026[pos].progress += progress;
+          positionData2026[pos].remaining += remaining;
+        }
+      });
+
+      // KPI 카드 업데이트
+      document.getElementById('to-2026-total').textContent = fmtNum(yearData[2026].total);
+      document.getElementById('to-2026-complete').textContent = fmtNum(yearData[2026].complete);
+      document.getElementById('to-2026-progress').textContent = fmtNum(yearData[2026].progress);
+      document.getElementById('to-2026-remaining').textContent = fmtNum(yearData[2026].remaining);
+
+      // 연도별 비교 차트
+      renderYearComparisonChart(yearData);
+
+      // 2026년 포지션별 테이블
+      renderPosition2026Table(positionData2026);
+    }
+
+    function renderYearComparisonChart(yearData) {
+      if (charts.yearComparison) charts.yearComparison.destroy();
+
+      const canvas = document.getElementById('year-comparison-chart');
+      if (!canvas) return;
+
+      // 달성율 계산
+      const achievement2025 = yearData[2025].total > 0 ? ((yearData[2025].complete / yearData[2025].total) * 100) : 0;
+      const achievement2026 = yearData[2026].total > 0 ? ((yearData[2026].complete / yearData[2026].total) * 100) : 0;
+
+      charts.yearComparison = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: ['총 TO', '달성율(%)'],
+          datasets: [
+            {
+              label: '2025년',
+              data: [
+                yearData[2025].total,
+                achievement2025
+              ],
+              backgroundColor: '#d1d5db',
+              borderRadius: 6,
+            },
+            {
+              label: '2026년',
+              data: [
+                yearData[2026].total,
+                achievement2026
+              ],
+              backgroundColor: '#2563eb',
+              borderRadius: 6,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 12, font: { size: 12 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const isAchievementRate = ctx.dataIndex === 1;
+                  if (isAchievementRate) {
+                    return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`;
+                  }
+                  return `${ctx.dataset.label}: ${fmtNum(ctx.parsed.y)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#f3f4f6' }
+            },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function renderPosition2026Table(positionData) {
+      const tbody = document.getElementById('to-2026-table-body');
+      if (!tbody) return;
+
+      let html = '';
+      Object.entries(positionData).forEach(([pos, data]) => {
+        const achievementRate = data.total > 0 ? ((data.complete / data.total) * 100).toFixed(1) : 0;
+        html += `
+          <tr>
+            <td><strong>${pos}</strong></td>
+            <td style="text-align: center; font-weight: 600;">${fmtNum(data.total)}</td>
+            <td style="text-align: center; font-weight: 600;">${fmtNum(data.complete)}</td>
+            <td style="text-align: center; font-weight: 600;">${fmtNum(data.progress)}</td>
+            <td style="text-align: center; font-weight: 600;">${fmtNum(data.remaining)}</td>
+            <td style="text-align: center;"><span style="color: #2563eb; font-weight: 600;">${achievementRate}%</span></td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
     }
 
     // T/O 데이터 로드
@@ -1144,7 +1337,8 @@
         }
         const csvText = await response.text();
         console.log('✅ T/O 데이터 로드 성공');
-        renderTOTable(csvText);
+        toData = parseCSV(csvText);
+        analyzeTO();
       } catch (err) {
         console.warn('⚠️ T/O 데이터 로드 실패:', err.message);
       }
@@ -1155,7 +1349,7 @@
       try {
         console.log('📋 채용 데이터 자동 로드 시작...');
         // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
-        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=2089072919';
+        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=0';
 
         let response = await fetch(RECRUITMENT_CSV_URL);
         if (!response.ok) {
