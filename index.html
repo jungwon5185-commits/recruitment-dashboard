@@ -398,34 +398,37 @@
         <span class="badge">연도별 비교 및 2026년 상세 정보</span>
       </h2>
 
-      <!-- 2026년 KPI 카드 -->
-      <div style="margin-bottom: 16px;">
-        <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">2026년 채용 현황</h3>
-        <div class="year-kpi-grid" id="year-2026-kpi">
-          <div class="year-kpi-card">
-            <div class="label">총 TO</div>
-            <div class="value" id="to-2026-total">-</div>
-          </div>
-          <div class="year-kpi-card">
-            <div class="label">채용완료</div>
-            <div class="value" id="to-2026-complete">-</div>
-          </div>
-          <div class="year-kpi-card">
-            <div class="label">진행중</div>
-            <div class="value" id="to-2026-progress">-</div>
-          </div>
-          <div class="year-kpi-card">
-            <div class="label">남은 TO</div>
-            <div class="value" id="to-2026-remaining">-</div>
+      <!-- 2026년 채용현황 + 연도별 비교 (한 줄) -->
+      <div style="margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;">
+        <!-- 좌측: 2026년 KPI -->
+        <div>
+          <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">2026년 채용 현황</h3>
+          <div class="year-kpi-grid" id="year-2026-kpi" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="year-kpi-card">
+              <div class="label">총 TO</div>
+              <div class="value" id="to-2026-total">-</div>
+            </div>
+            <div class="year-kpi-card">
+              <div class="label">채용완료</div>
+              <div class="value" id="to-2026-complete">-</div>
+            </div>
+            <div class="year-kpi-card">
+              <div class="label">진행중</div>
+              <div class="value" id="to-2026-progress">-</div>
+            </div>
+            <div class="year-kpi-card">
+              <div class="label">남은 TO</div>
+              <div class="value" id="to-2026-remaining">-</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 연도별 비교 차트 -->
-      <div style="margin-bottom: 16px;">
-        <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">연도별 비교 (2025 vs 2026)</h3>
-        <div style="position: relative; height: 300px;">
-          <canvas id="year-comparison-chart"></canvas>
+        <!-- 우측: 연도별 비교 차트 -->
+        <div>
+          <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #374151;">연도별 비교</h3>
+          <div style="position: relative; height: 200px;">
+            <canvas id="year-comparison-chart"></canvas>
+          </div>
         </div>
       </div>
 
@@ -1349,7 +1352,7 @@
       try {
         console.log('📋 채용 데이터 자동 로드 시작...');
         // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
-        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=2089072919';
+        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=0';
 
         let response = await fetch(RECRUITMENT_CSV_URL);
         if (!response.ok) {
