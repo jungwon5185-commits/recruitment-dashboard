@@ -1202,14 +1202,12 @@
         const to = parseNum(row[cols.to]);
         const complete = parseNum(row[cols.complete]);
         const progress = parseNum(row[cols.progress]);
-        const remaining = parseNum(row[cols.remaining]);
 
         if (year === '2025' || year === '2026') {
           if (yearData[year]) {
             yearData[year].total += to;
             yearData[year].complete += complete;
             yearData[year].progress += progress;
-            yearData[year].remaining += remaining; 
           }
         }
 
@@ -1222,8 +1220,16 @@
           positionData2026[pos].total += to;
           positionData2026[pos].complete += complete;
           positionData2026[pos].progress += progress;
-          positionData2026[pos].remaining += remaining;
         }
+      });
+
+      // 남은 TO = 총 TO - 채용완료 - 진행중 (공식으로 계산)
+      yearData[2025].remaining = yearData[2025].total - yearData[2025].complete - yearData[2025].progress;
+      yearData[2026].remaining = yearData[2026].total - yearData[2026].complete - yearData[2026].progress;
+
+      // 2026년 포지션별 남은 TO 계산
+      Object.keys(positionData2026).forEach(pos => {
+        positionData2026[pos].remaining = positionData2026[pos].total - positionData2026[pos].complete - positionData2026[pos].progress;
       });
 
       // KPI 카드 업데이트
@@ -1352,7 +1358,7 @@
       try {
         console.log('📋 채용 데이터 자동 로드 시작...');
         // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
-        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=2089072919';
+        const RECRUITMENT_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=0';
 
         let response = await fetch(RECRUITMENT_CSV_URL);
         if (!response.ok) {
