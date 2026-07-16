@@ -1338,8 +1338,7 @@
       try {
         console.log('📋 T/O 데이터 로드 시작...');
         // Google Sheets 공개 CSV URL - 사용자가 설정한 URL로 변경하세요
-        const TO_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=61262713
-      ';
+        const TO_CSV_URL = 'https://docs.google.com/spreadsheets/d/1YePcENf04K_zw-R7arARKUoU9JyL4LtOd0Tn4sDYiZU/export?format=csv&gid=61262713';
 
         let response = await fetch(TO_CSV_URL);
         if (!response.ok) {
